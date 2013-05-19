@@ -1,0 +1,3 @@
+[submodule "random-js"]
+	path = random-js
+	url = https://github.com/jrus/random-js.git
