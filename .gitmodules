@@ -1,3 +1,6 @@
 [submodule "random-js"]
 	path = random-js
 	url = https://github.com/jrus/random-js.git
+[submodule "reveal.js"]
+	path = reveal.js
+	url = github:hakimel/reveal.js.git
