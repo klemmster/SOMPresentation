@@ -73,8 +73,8 @@ class Grid
         for cube in yvals
           @mesh.add cube.mesh
 
-  highlightCube: (pos) -> 
-    this.setCubesOpacity(0.2)
+  highlightCube: (pos) ->
+    this.setCubesOpacity(0.1)
     cube = @cubes[Math.floor pos.x][Math.floor pos.y][Math.floor pos.z].color.opacity = 1.0
 
   setCubesOpacity: (opacity) ->
@@ -117,9 +117,9 @@ class Grid
     return neighbours
 
   naivGauss: (pos1, pos2, denom) ->
-   distSquare = pos1.distanceToSquared(pos2)
-   result = Math.exp(-(distSquare/denom))
-   return result
+    distSquare = pos1.distanceToSquared(pos2)
+    result = Math.exp(-(distSquare/denom))
+    return result
 
 
 class Scene
@@ -145,7 +145,7 @@ class Scene
     requestAnimationFrame(=> this.render())
     @renderer.render(@scene, @camera)
     if @onFrame
-     @onFrame()
+      @onFrame()
 
 class Som
   constructor: (@inputGrid, @outputGrid) ->
@@ -157,31 +157,52 @@ class Som
       setTimeout((=>this.train()), 150)
     this.trainStep(125, 100)
 
-  getVariance: -> 
+  getVariance: ->
     part = @outputGrid.gridSize.x/4
     m = -part/@maxStep
     return m*@step + part
 
-  trainStep: (time1=1000, time2=500) ->
-    variance = this.getVariance()
+  selectInputCube: ->
     inputCube = this._getRandomInput()
     @inputGrid.highlightCube(inputCube.gridPos)
+    return inputCube
+
+  selectBestOutputCube: (inputCube) ->
     bestMatch = @outputGrid.findBestMatch(inputCube.color.color)
-    #@outputGrid.highlightCube(bestMatch.gridPos)
-    neighbours = @outputGrid.getNeighbours bestMatch, variance
-    µ = (Math.exp((-1/500)*@step)-0.4)
+    @outputGrid.highlightCube(bestMatch.gridPos)
+    return bestMatch
+
+  resetOpacities: ->
+    @outputGrid.setCubesOpacity 1.0
+    @inputGrid.setCubesOpacity 1.0
+
+  getNeighbours: (bestMatch) ->
+    variance = this.getVariance()
+    return @outputGrid.getNeighbours bestMatch, variance
+
+  moveCubes: (neighbours, time) ->
     for [weight, cube] in neighbours
       resetFun = (theCube, oldPos) ->
         setTimeout((->
-         theCube.mesh.position = oldPos ), time1)
+          theCube.mesh.position = oldPos ), time)
       resetFun(cube, cube.mesh.position.clone())
       vec = new THREE.Vector3(0, 0, weight*30)
       cube.mesh.position.add vec
 
+  weightCubes: (bestMatch, neighbours, time) ->
+    µ = (Math.exp((-1/500)*@step)-0.4)
+    for [weight, cube] in neighbours
       setColorFun = (theCube, color) ->
         setTimeout((->
-         theCube.adjustColorWeight µ, weight, color), time2)
+          theCube.adjustColorWeight µ, weight, color), time)
       setColorFun(cube, bestMatch.color.color)
+ 
+  trainStep: (time1=1000, time2=500) ->
+    inputCube = this.selectInputCube()
+    bestMatch = @outputGrid.findBestMatch(inputCube.color.color)
+    neighbours = this.getNeighbours(bestMatch)
+    this.moveCubes(neighbours, time1)
+    this.weightCubes(bestMatch, neighbours, time2)
     @step += 1
 
   _getRandomInput: ->
@@ -190,25 +211,26 @@ class Som
     z = random.randrange @inputGrid.gridSize.z
     return @inputGrid.cubes[x][y][z]
 
-$j ->
 
-  size = new THREE.Vector2 400, 400
-
-  sortedColor = (colorStepX, colorStepY, colorStepZ, x, y, z) ->
-    return "rgb(#{Math.floor(colorStepX*x)},#{Math.floor(colorStepY*y)},#{Math.floor(colorStepZ*z)})"
-
-  inputGrid = new Grid(new THREE.Vector3(4, 4, 4), new THREE.Vector3(90, 90, 90),
-    sortedColor)
-  scene = new Scene $j('#inputSpace'), inputGrid, size, 45
-
-  randomColor = (colorStepX, colorStepY, colorStepZ, x, y, z) ->
-    r = random.randint(0, 255)
-    g = random.randint(0, 255)
-    b = random.randint(0, 255)
-    return "rgb(#{r},#{g},#{b})"
-  outputGrid = new Grid(new THREE.Vector3(32, 32, 1), new THREE.Vector3(190, 190, 10),
-    randomColor)
-  outputGrid.mesh.rotation.setX(-0.8)
-  scene = new Scene $j('#outputSpace'), outputGrid, size, 45
-
-  som = new Som inputGrid, outputGrid
+#$j ->
+#
+#  size = new THREE.Vector2 400, 400
+#
+#  sortedColor = (colorStepX, colorStepY, colorStepZ, x, y, z) ->
+#    return "rgb(#{Math.floor(colorStepX*x)},#{Math.floor(colorStepY*y)},#{Math.floor(colorStepZ*z)})"
+#
+#  inputGrid = new Grid(new THREE.Vector3(4, 4, 4), new THREE.Vector3(90, 90, 90),
+#    sortedColor)
+#  scene = new Scene $j('#inputSpace'), inputGrid, size, 45
+#
+#  randomColor = (colorStepX, colorStepY, colorStepZ, x, y, z) ->
+#    r = random.randint(0, 255)
+#    g = random.randint(0, 255)
+#    b = random.randint(0, 255)
+#    return "rgb(#{r},#{g},#{b})"
+#  outputGrid = new Grid(new THREE.Vector3(32, 32, 1), new THREE.Vector3(190, 190, 10),
+#    randomColor)
+#  outputGrid.mesh.rotation.setX(-0.8)
+#  scene = new Scene $j('#outputSpace'), outputGrid, size, 45
+#
+#  som = new Som inputGrid, outputGrid
